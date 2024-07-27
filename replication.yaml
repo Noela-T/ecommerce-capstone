@@ -1,0 +1,15 @@
+source: 'local://'
+target: SLING_PG
+
+defaults:
+  mode: full-refresh #how to avoid full refresh mode
+
+streams:
+  "file:///data/*.csv":
+    source_options:
+      format: csv
+    object: 'source.{stream_file_name}' #schema name is source
+
+env:
+  SAMPLE_SIZE: 10000
+  SLING_LOADED_AT_COLUMN: false

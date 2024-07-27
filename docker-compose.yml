@@ -1,0 +1,96 @@
+version: '3.4'
+
+# ====================================== AIRFLOW ENVIRONMENT VARIABLES =======================================
+x-environment: &airflow_environment
+  - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+  - AIRFLOW__CORE__FERNET_KEY= 'xf62s-IXnMrVxwjasjOZTXtuB5oxOUKL8p9SuGlzPVM='
+  - AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=False
+  - AIRFLOW__CORE__LOAD_EXAMPLES=False
+  - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql://airflow:airflow@postgres:5432/airflow
+  - AIRFLOW__CORE__STORE_DAG_CODE=True
+  - AIRFLOW__CORE__STORE_SERIALIZED_DAGS=True
+  - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+  - AIRFLOW__CORE__TEST_CONNECTION=Enabled
+
+x-airflow-image: &airflow_image apache/airflow:2.9.2-python3.8
+# ====================================== /AIRFLOW ENVIRONMENT VARIABLES ======================================
+
+# SLING environment variable, referencing ecommerce postgres source db
+x-sling-env: &sling_env
+  SLING_PG: 'postgresql://altschool_cap:capSecrets@ecommercePG:5432/ecommerce?sslmode=disable'
+
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+      PGDATA: /var/lib/postgresql/data/pgdata #persist data so that connection data stays when you shutdown and start docker-compose
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data/pgdata #persist data so that connection data stays when you shutdown and start docker-compose
+
+  ecommercePG:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: altschool_cap
+      POSTGRES_PASSWORD: capSecrets
+      POSTGRES_DB: ecommerce
+    ports:
+      - "5434:5432"
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+
+  sling:
+    image: slingdata/sling
+    environment: *sling_env
+    volumes: 
+      - ./data:/data
+      - ./replication.yaml:/replication.yaml
+    entrypoint: /bin/bash
+    command: -c 'sling run -r replication.yaml'
+
+  init:
+    build:
+      context: docker
+      args:
+        AIRFLOW_BASE_IMAGE: *airflow_image
+    depends_on:
+      - postgres
+    environment: *airflow_environment
+    entrypoint: /bin/bash
+    command: -c 'airflow db init && airflow users create --username admin --password admin --role Admin'
+
+  webserver:
+    build:
+      context: docker
+      args:
+        AIRFLOW_BASE_IMAGE: *airflow_image
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - "8080:8080"
+    volumes:
+      - logs:/opt/airflow/logs
+    environment: *airflow_environment
+    command: webserver
+
+  scheduler:
+    build:
+      context: docker
+      args:
+        AIRFLOW_BASE_IMAGE: *airflow_image
+    restart: always
+    depends_on:
+      - postgres
+    volumes:
+      - logs:/opt/airflow/logs
+      - ./dags:/opt/airflow/dags
+    environment: *airflow_environment
+    command: scheduler
+
+volumes:
+  logs:
