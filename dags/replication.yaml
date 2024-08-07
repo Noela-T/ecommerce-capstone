@@ -1,0 +1,38 @@
+source: SLING_PG
+target: BIGQUERY
+
+defaults:
+  object: 'olist_source.{stream_table}'
+  mode: incremental #how to avoid full refresh mode
+
+streams:
+  source.olist_customers_dataset:
+    primary_key: [customer_id, customer_unique_id]
+
+  source.olist_geolocation_dataset:
+    primary_key: [geolocation_zip_code_prefix, geolocation_lat, geolocation_lng, geolocation_city, geolocation_state]
+
+  source.olist_order_items_dataset:
+    primary_key: [order_id, order_item_id]
+
+  source.olist_order_payments_dataset:
+    primary_key: [order_id, payment_sequential]
+
+  source.olist_order_reviews_dataset:
+    primary_key: [order_id, review_id]
+
+  source.olist_orders_dataset:
+    primary_key: [order_id]
+
+  source.olist_products_dataset:
+    primary_key: [product_id]
+
+  source.olist_sellers_dataset:
+    primary_key: [seller_id]
+
+  source.product_category_name_translation:
+    primary_key: [product_category_name]      
+
+env:
+  SAMPLE_SIZE: 10000
+  SLING_LOADED_AT_COLUMN: false
