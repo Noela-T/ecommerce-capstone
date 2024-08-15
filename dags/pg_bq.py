@@ -3,11 +3,6 @@
 import airflow.utils.dates
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.hooks.base import BaseHook
-from airflow.operators.python import PythonOperator
-from airflow.providers.postgres.operators.postgres import PostgresOperator
-from airflow.operators.docker_operator import DockerOperator
-
 
 default_args = {
     'owner': 'airflow'
@@ -38,4 +33,3 @@ use_sling = BashOperator(
 )
 
 set_sling_bigquery >> use_sling
-# sling run --src-conn SLING_PG --src-stream 'source.olist_order_payments_dataset' --tgt-conn BIGQUERY --tgt-object 'olist_ecommerce.payments' --mode incremental --primary-key 'order_id'
