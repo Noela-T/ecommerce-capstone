@@ -1,4 +1,4 @@
-
+ 
 with orders_joined_customers as (
     select 
         c.order_customer_id,
