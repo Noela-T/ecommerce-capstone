@@ -1,24 +1,26 @@
 version: '3.4'
 
+x-airflow-common: &airflow-common
 # ====================================== AIRFLOW ENVIRONMENT VARIABLES =======================================
-x-environment: &airflow_environment
-  - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-  - AIRFLOW__CORE__FERNET_KEY= $AIRFLOW__CORE__FERNET_KEY
-  - AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=False
-  - AIRFLOW__CORE__LOAD_EXAMPLES=False
-  - AIRFLOW__CORE__SQL_ALCHEMY_CONN= $AIRFLOW__CORE__SQL_ALCHEMY_CONN
-  - AIRFLOW__CORE__STORE_DAG_CODE=True
-  - AIRFLOW__CORE__STORE_SERIALIZED_DAGS=True
-  - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
-  - AIRFLOW__CORE__TEST_CONNECTION=Enabled
+  x-environment: &airflow_environment
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__FERNET_KEY=$AIRFLOW__CORE__FERNET_KEY
+      - AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=False
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=$AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+      - AIRFLOW__CORE__STORE_DAG_CODE=True
+      - AIRFLOW__CORE__STORE_SERIALIZED_DAGS=True
+      - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+      - AIRFLOW__CORE__TEST_CONNECTION=Enabled
+      - SLING_PG=$SLING_PG
+    
+  x-airflow-image: &airflow_image apache/airflow:2.9.3
 
-x-airflow-image: &airflow_image apache/airflow:2.9.2-python3.8
 # ====================================== /AIRFLOW ENVIRONMENT VARIABLES ======================================
 
 # SLING environment variable, referencing ecommerce postgres source db
 x-sling-env: &sling_env
   SLING_PG: $SLING_PG
-  SLING_BQ: $SLING_BQ
 
 services:
   postgres:
@@ -32,9 +34,13 @@ services:
       - "5433:5432"
     volumes:
       - ./pgdata:/var/lib/postgresql/data/pgdata #persist data so that connection data stays when you shutdown and start docker-compose
+    networks:
+      - my_network
 
   ecommercePG:
     image: postgres:latest
+    container_name: ecommercePG
+    hostname: ecommercePG
     environment:
       POSTGRES_USER: $e_POSTGRES_USER
       POSTGRES_PASSWORD: $e_POSTGRES_PASSWORD
@@ -43,15 +49,22 @@ services:
       - "5434:5432"
     volumes:
       - ./pg_data:/var/lib/postgresql/data
+    networks:
+      - my_network
 
   sling:
     image: slingdata/sling
+    container_name: sling-cli
     environment: *sling_env
+    depends_on:
+      - ecommercePG
     volumes: 
       - ./data:/data
-      - ./replication.yaml:/replication.yaml
+      - ./sling_files:/sling_files
     entrypoint: /bin/bash
-    command: -c 'sling run -r replication.yaml'
+    command: -c 'sling run -r /sling_files/replication.yaml'
+    networks:
+      - my_network
 
   init:
     build:
@@ -62,7 +75,9 @@ services:
       - postgres
     environment: *airflow_environment
     entrypoint: /bin/bash
-    command: -c 'airflow db init && airflow users create --username admin --password admin --role Admin'
+    command: -c 'airflow db init && airflow users create --username admin --password admin --firstname Anonymous --lastname Admin --role Admin --email admin@example.org'
+    networks:
+      - my_network
 
   webserver:
     build:
@@ -78,6 +93,8 @@ services:
       - logs:/opt/airflow/logs
     environment: *airflow_environment
     command: webserver
+    networks:
+      - my_network
 
   scheduler:
     build:
@@ -90,8 +107,16 @@ services:
     volumes:
       - logs:/opt/airflow/logs
       - ./dags:/opt/airflow/dags
+      - ./secrets:/usr/local/airflow/secrets
     environment: *airflow_environment
     command: scheduler
+    networks:
+      - my_network
 
 volumes:
-  logs:
+  logs: 
+  secrets:
+    external: true
+
+networks:
+  my_network:

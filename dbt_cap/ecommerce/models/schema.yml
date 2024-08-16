@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: int_order_items_aggregated
+    description: Count the number of unique products in each order and for a unique price
+    columns:
+      - name: product_quantity
+        description: counts the quantity of a unique product in each order
+
+  - name: int_products_translated
+    description: This model adds the product category names in english to the source product table
+    columns:
+      - name: product_id
+        description: Primary key
+        data_tests:
+          - unique
+          - not_null
+
+  - name: int_sales_by_category
+    description: This model joins data from valid orders to the products and order_items sources
+
+  - name: int_avg_delivery_time
+    description: Calculates the time difference in days, hours and minutes, between order purchase timestamp and delivery to customer timestamp for delivered orders
+    columns:
+      - name: order_status
+        data_tests:
+          - accepted_values:
+              values: ['delivered']
+
+  - name: int_orders_by_state
+    description: Joined orders data to customer state code and name
+
+  - name: fct_sales_by_category
+    description: Sum product sales in different categories and order from highest to lowest
+
+  - name: fct_avg_delivery_time
+    description: Calculate the average delivery time in a clear readable format
+  
+  - name: fct_all_orders_by_state
+    description: Count the number of orders generated in each state regardless of the order status
+
+  - name: fct_valid_orders_by_state
+    description: Count the number of orders considered as successfull, generated in each state
+
