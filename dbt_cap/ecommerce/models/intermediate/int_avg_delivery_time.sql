@@ -7,7 +7,7 @@ with delivery_time_diff as (
         order_delivered_customer_at, 
         date_diff(order_delivered_customer_at, order_purchased_at, hour) as time_difference
     from {{ ref('stg_orders') }}
-    where order_status = 'delivered'
+    where order_status = 'delivered' and order_delivered_customer_at is not null
 )
 
 select * from delivery_time_diff

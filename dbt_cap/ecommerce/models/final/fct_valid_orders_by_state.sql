@@ -5,7 +5,7 @@ with valid_orders as (
         state_name,
         count(order_customer_id) as number_of_orders
     from {{ ref('int_orders_by_state') }}
-    where order_status in ('invoiced','approved','processing','shipped','delivered')
+    where order_status ='delivered' and order_delivered_customer_at is not null
     group by 1
 )
 
